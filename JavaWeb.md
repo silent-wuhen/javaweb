@@ -14,7 +14,17 @@ copyright_info:
 
 # 前言
 
+视频：[黑马视频](https://www.bilibili.com/video/BV1m84y1w7Tb)
 
+
+
+>**Web标准**也称为**网页标准**，由一系列的标准组成，大部分由W3C（ World Wide Web Consortium，万维网联盟）负责制定。由三个组成部分：
+>
+>- HTML：负责网页的结构（页面元素和内容）。
+>
+>- CSS：负责网页的表现（页面元素的外观、位置等页面样式，如：颜色、大小等）。
+>
+>- JavaScript：负责网页的行为（交互效果）。
 
 
 
@@ -4472,7 +4482,156 @@ public class GlobalExceptionHandler {
 
 
 
-# 9.事务管理
+# 9.事务管理&AOP
+
+>**事务**：是一组操作的集合，它是一个不可分割的工作单位。事务会把所有的操作作为一个整体，一起向数据库提交或者是撤销操作请求。
+>
+>事务的操作主要有三步：
+>
+>1. 开启事务（一组操作开始前，开启事务）：start transaction / begin ;
+>2. 提交事务（这组操作全部成功后，提交事务）：commit ;
+>3. 回滚事务（中间任何一个操作出现异常，回滚事务）：rollback ;
+
+
+
+## 1. Spring事务管理
+
+### 1.Transactional注解
+
+> @Transactional作用：在当前这个方法执行开始之前来开启事务，方法执行完毕之后提交事务。如果在这个方法执行的过程中出现了异常，就会进行事务的回滚操作。
+>
+> @Transactional注解：一般会在业务层当中来控制事务，因为在业务层当中，一个业务功能可能会包含多个数据访问的操作。在业务层来控制事务，就可以将多个数据访问操作控制在一个事务范围内。
+
+
+
+- @Transactional注解书写位置：
+
+  1. 方法
+    - 当前方法交给spring进行事务管理
+  2. 类
+    - 当前类中所有的方法都交由spring进行事务管理
+  3. 接口
+    - 接口下所有的实现类当中所有的方法都交给spring 进行事务管理
+
+- 在方法delete上加上 @Transactional 来控制事务 。
+
+  ```java
+  @Slf4j
+  @Service
+  public class DeptServiceImpl implements DeptService {
+      @Autowired
+      private DeptMapper deptMapper;
+  
+      @Autowired
+      private EmpMapper empMapper;
+  
+      
+      @Override
+      @Transactional  //当前方法添加了事务管理
+      public void delete(Integer id){
+          //根据部门id删除部门信息
+          deptMapper.deleteById(id);
+          
+          //模拟：异常发生
+          int i = 1/0;
+  
+          //删除部门下的所有员工信息
+          empMapper.deleteByDeptId(id);   
+      }
+  }
+  ```
+
+- 在application.yml配置文件中开启事务管理日志，这样就可以在控制看到和事务相关的日志信息了
+
+  ~~~yaml
+  #spring事务管理日志
+  logging:
+    level:
+      org.springframework.jdbc.support.JdbcTransactionManager: debug
+  ~~~
+
+
+
+
+
+
+### 2.事务进阶
+
+> @Transactional注解当中的两个常见的属性：
+>
+> 1. 异常回滚的属性：rollbackFor 
+> 2. 事务传播行为：propagation
+
+
+
+#### 1.rollbackFor
+
+- 默认情况下，只有出现RuntimeException(运行时异常)才会回滚事务。若想所有的异常都回滚，需要来配置@Transactional注解当中的rollbackFor属性，通过rollbackFor这个属性可以指定出现何种异常类型回滚事务。
+
+  ~~~java
+  @Slf4j
+  @Service
+  public class DeptServiceImpl implements DeptService {
+      @Autowired
+      private DeptMapper deptMapper;
+  
+      @Autowired
+      private EmpMapper empMapper;
+  
+      
+      @Override
+      @Transactional(rollbackFor=Exception.class)
+      public void delete(Integer id){
+          //根据部门id删除部门信息
+          deptMapper.deleteById(id);
+          
+          //模拟：异常发生
+          int num = id/0;
+  
+          //删除部门下的所有员工信息
+          empMapper.deleteByDeptId(id);   
+      }
+  }
+  ~~~
+
+  
+
+> 结论：
+>
+> - 在Spring的事务管理中，默认只有运行时异常 RuntimeException才会回滚。
+> - 如果还需要回滚指定类型的异常，可以通过rollbackFor属性来指定。
+
+
+
+#### 2.propagation
+
+> @Transactional注解中的第二个属性propagation是用来配置事务的传播行为(当一个事务方法被另一个事务方法调用时，这个事务方法应该如何进行事务控制。)。
+
+
+
+| **属性值**    | **含义**                                                     |
+| ------------- | ------------------------------------------------------------ |
+| REQUIRED      | 【默认值】需要事务，有则加入，无则创建新事务                 |
+| REQUIRES_NEW  | 需要新事务，无论有无，总是创建新事务                         |
+| SUPPORTS      | 支持事务，有则加入，无则在无事务状态中运行                   |
+| NOT_SUPPORTED | 不支持事务，在无事务状态下运行,如果当前存在已有事务,则挂起当前事务 |
+| MANDATORY     | 必须有事务，否则抛异常                                       |
+| NEVER         | 必须没事务，否则抛异常                                       |
+| …             |                                                              |
+
+> 对于事务传播行为，只需要关注两个：
+>
+> - REQUIRED ：大部分情况下都是用该传播行为即可。
+>
+> - REQUIRES_NEW ：当我们不希望事务之间相互影响时，可以使用该传播行为。比如：下订单前需要记录日志，不论订单保存成功与否，都需要保证日志记录能够记录成功。
+
+
+
+## 2.AOP
+
+
+
+
 
 
 
