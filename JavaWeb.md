@@ -5292,3 +5292,460 @@ public class MyAspect7 {
 
 
 
+
+
+# 11.`Maven`高级
+
+**分模块设计:：就是将项目按照功能/结构拆分成若干个子模块，方便项目的管理维护、拓展，也方便模块键的相互调用、资源共享。**
+
+
+
+
+
+
+
+## 1.继承
+
+- 概念：继承描述的是两个工程间的关系，与java中的继承相似，子工程可以继承父工程中的配置信息，常见于依赖关系的继承。
+
+- 作用：简化依赖配置、统一管理依赖
+
+- 实现：
+
+  ```xml
+  <parent>
+      <groupId>...</groupId>
+      <artifactId>...</artifactId>
+      <version>...</version>
+      <relativePath>....</relativePath>
+  </parent>
+  ```
+
+- 继承关系：
+
+  1. 父工程tlias-parent的pom.xml文件配置如下：
+
+     ```xml
+     <parent>
+         <groupId>org.springframework.boot</groupId>
+         <artifactId>spring-boot-starter-parent</artifactId>
+         <version>2.7.5</version>
+         <relativePath/> <!-- lookup parent from repository -->
+     </parent>
+     
+     <groupId>com.itheima</groupId>
+     <artifactId>tlias-parent</artifactId>
+     <version>1.0-SNAPSHOT</version>
+     <packaging>pom</packaging>
+     ```
+
+     > Maven打包方式：
+     >
+     > - jar：普通模块打包，springboot项目基本都是jar包（内嵌tomcat运行）
+     > - war：普通web程序打包，需要部署在外部的tomcat服务器中运行
+     > - pom：父工程或聚合工程，该模块不写代码，仅进行依赖管理
+
+  2. 子工程的pom.xml文件中，配置继承关系。
+
+     ```xml
+     <parent>
+         <groupId>com.itheima</groupId>
+         <artifactId>tlias-parent</artifactId>
+         <version>1.0-SNAPSHOT</version>
+         <relativePath>../tlias-parent/pom.xml</relativePath>
+     </parent>
+     
+     <artifactId>tlias-utils</artifactId>
+     <version>1.0-SNAPSHOT</version>
+     ```
+
+     > 注意：
+     >
+     > - 在子工程中，配置了继承关系之后，坐标中的groupId是可以省略的，因为会自动继承父工程的 。
+     > - relativePath指定父工程的pom文件的相对位置（如果不指定，将从本地仓库/远程仓库查找该工程）。
+     >   -  ../ 代表的上一级目录
+
+- 版本锁定
+
+  1. 在maven中，可以在父工程的pom文件中通过 `<dependencyManagement>` 来统一管理依赖版本。
+
+     父工程：
+
+     ```xml
+     <!--统一管理依赖版本-->
+     <dependencyManagement>
+         <dependencies>
+             <!--JWT令牌-->
+             <dependency>
+                 <groupId>io.jsonwebtoken</groupId>
+                 <artifactId>jjwt</artifactId>
+                 <version>0.9.1</version>
+             </dependency>
+         </dependencies>
+     </dependencyManagement>
+     ```
+
+     子工程：
+
+     ```xml
+     <dependencies>
+         <!--JWT令牌-->
+         <dependency>
+             <groupId>io.jsonwebtoken</groupId>
+             <artifactId>jjwt</artifactId>
+         </dependency>
+     </dependencies>
+     ```
+
+     
+
+     > 注意：
+     >
+     > - 在父工程中所配置的 `<dependencyManagement>` 只能统一管理依赖版本，并不会将这个依赖直接引入进来。 这点和 `<dependencies>` 是不同的。
+     >
+     > - 子工程要使用这个依赖，还是需要引入的，只是此时就无需指定 `<version>` 版本号了，父工程统一管理。变更依赖版本，只需在父工程中统一变更。
+
+  2. 实现
+
+     tlias-parent 中的配置
+
+     - 1. 
+
+     ```xml
+     <!--统一管理依赖版本-->
+     <dependencyManagement>
+         <dependencies>
+             <!--JWT令牌-->
+             <dependency>
+                 <groupId>io.jsonwebtoken</groupId>
+                 <artifactId>jjwt</artifactId>
+                 <version>0.9.1</version>
+             </dependency>
+     
+             <!--阿里云OSS-->
+             <dependency>
+                 <groupId>com.aliyun.oss</groupId>
+                 <artifactId>aliyun-sdk-oss</artifactId>
+                 <version>3.15.1</version>
+             </dependency>
+             <dependency>
+                 <groupId>javax.xml.bind</groupId>
+                 <artifactId>jaxb-api</artifactId>
+                 <version>2.3.1</version>
+             </dependency>
+             <dependency>
+                 <groupId>javax.activation</groupId>
+                 <artifactId>activation</artifactId>
+                 <version>1.1.1</version>
+             </dependency>
+             <!-- no more than 2.3.3-->
+             <dependency>
+                 <groupId>org.glassfish.jaxb</groupId>
+                 <artifactId>jaxb-runtime</artifactId>
+                 <version>2.3.3</version>
+             </dependency>
+         </dependencies>
+     </dependencyManagement>
+     ```
+
+     
+
+     tlias-utils中的pom.xml配置
+
+     如果依赖的版本已经在父工程进行了统一管理，所以在子工程中就无需再配置依赖的版本了。
+
+     ```xml
+     <dependencies>
+         <!--JWT令牌-->
+         <dependency>
+             <groupId>io.jsonwebtoken</groupId>
+             <artifactId>jjwt</artifactId>
+         </dependency>
+     
+         <!--阿里云OSS-->
+         <dependency>
+             <groupId>com.aliyun.oss</groupId>
+             <artifactId>aliyun-sdk-oss</artifactId>
+         </dependency>
+         <dependency>
+             <groupId>javax.xml.bind</groupId>
+             <artifactId>jaxb-api</artifactId>
+         </dependency>
+         <dependency>
+             <groupId>javax.activation</groupId>
+             <artifactId>activation</artifactId>
+         </dependency>
+         <!-- no more than 2.3.3-->
+         <dependency>
+             <groupId>org.glassfish.jaxb</groupId>
+             <artifactId>jaxb-runtime</artifactId>
+         </dependency>
+     
+         <!--WEB开发-->
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-web</artifactId>
+         </dependency>
+     </dependencies>
+     ```
+
+     
+
+     > 我们之所以，在springboot项目中很多时候，引入依赖坐标，都不需要指定依赖的版本 `<version>` ，是因为在父工程 spring-boot-starter-parent中已经通过 `<dependencyManagement>`对依赖的版本进行了统一的管理维护。
+
+- 属性配置
+
+  可以通过自定义属性及属性引用的形式，在父工程中将依赖的版本号进行集中管理维护。 具体语法为：
+
+  1). 自定义属性
+
+  ```xml
+  <properties>
+  	<lombok.version>1.18.24</lombok.version>
+  </properties>
+  ```
+
+  
+
+  2). 引用属性
+
+  ```xml
+  <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+  </dependency>
+  ```
+
+  
+
+  就可以在父工程中，将所有的版本号，都集中管理维护起来。
+
+  ```xml
+  <properties>
+      <maven.compiler.source>11</maven.compiler.source>
+      <maven.compiler.target>11</maven.compiler.target>
+  
+      <lombok.version>1.18.24</lombok.version>
+      <jjwt.version>0.9.1</jjwt.version>
+      <aliyun.oss.version>3.15.1</aliyun.oss.version>
+      <jaxb.version>2.3.1</jaxb.version>
+      <activation.version>1.1.1</activation.version>
+      <jaxb.runtime.version>2.3.3</jaxb.runtime.version>
+  </properties>
+  
+  
+  <dependencies>
+      <dependency>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok</artifactId>
+          <version>${lombok.version}</version>
+      </dependency>
+  </dependencies>
+  
+  <!--统一管理依赖版本-->
+  <dependencyManagement>
+      <dependencies>
+          <!--JWT令牌-->
+          <dependency>
+              <groupId>io.jsonwebtoken</groupId>
+              <artifactId>jjwt</artifactId>
+              <version>${jjwt.version}</version>
+          </dependency>
+  
+          <!--阿里云OSS-->
+          <dependency>
+              <groupId>com.aliyun.oss</groupId>
+              <artifactId>aliyun-sdk-oss</artifactId>
+              <version>${aliyun.oss.version}</version>
+          </dependency>
+          <dependency>
+              <groupId>javax.xml.bind</groupId>
+              <artifactId>jaxb-api</artifactId>
+              <version>${jaxb.version}</version>
+          </dependency>
+          <dependency>
+              <groupId>javax.activation</groupId>
+              <artifactId>activation</artifactId>
+              <version>${activation.version}</version>
+          </dependency>
+          <!-- no more than 2.3.3-->
+          <dependency>
+              <groupId>org.glassfish.jaxb</groupId>
+              <artifactId>jaxb-runtime</artifactId>
+              <version>${jaxb.runtime.version}</version>
+          </dependency>
+      </dependencies>
+  </dependencyManagement>
+  ```
+
+  版本集中管理之后，要想修改依赖的版本，就只需要在父工程中自定义属性的位置，修改对应的属性值即可。
+
+  
+
+  > **面试题：`<dependencyManagement>` 与 `<dependencies>` 的区别是什么?**
+  >
+  > - `<dependencies>` 是直接依赖，在父工程配置了依赖，子工程会直接继承下来。 
+  > - `<dependencyManagement>` 是统一管理依赖版本，不会直接依赖，还需要在子工程中引入所需依赖(无需指定版本)
+
+
+
+
+
+## 2.聚合 
+
+>- **聚合：**将多个模块组织成一个整体，同时进行项目的构建。
+>- **聚合工程：**一个不具有业务功能的“空”工程（有且仅有一个pom文件） 【PS：一般来说，继承关系中的父工程与聚合关系中的聚合工程是同一个】
+>- **作用：**快速构建项目（无需根据依赖关系手动构建，直接在聚合工程上构建即可）
+
+
+
+- 实现
+
+  在maven中，我们可以在聚合工程中通过 `<moudules>` 设置当前聚合工程所包含的子模块的名称。可以在 tlias-parent中，添加如下配置，来指定当前聚合工程，需要聚合的模块：
+
+  ```java
+  <!--聚合其他模块-->
+  <modules>
+      <module>../tlias-pojo</module>
+      <module>../tlias-utils</module>
+      <module>../tlias-web-management</module>
+  </modules>
+  ```
+
+  此时，要进行编译、打包、安装操作，就无需在每一个模块上操作了。只需要在聚合工程上，统一进行操作就可以了。
+
+- 继承与聚合对比
+
+  1. **作用**
+     - 聚合用于快速构建项目
+
+     - 继承用于简化依赖配置、统一管理依赖
+
+  2. **相同点：**
+
+     - 聚合与继承的pom.xml文件打包方式均为pom，通常将两种关系制作到同一个pom文件中
+
+     - 聚合与继承均属于设计型模块，并无实际的模块内容
+
+  3. **不同点：**
+
+     - 聚合是在聚合工程中配置关系，聚合可以感知到参与聚合的模块有哪些
+
+     - 继承是在子模块中配置关系，父模块无法感知哪些子模块继承了自己
+
+
+
+## 3. 私服
+
+> 如果在项目中需要使用其他第三方提供的依赖，如果本地仓库没有，也会自动连接私服下载，如果私服没有，私服此时会自动连接中央仓库，去中央仓库中下载依赖，然后将下载的依赖存储在私服仓库及本地仓库中。
+
+- 介绍
+
+  1. **私服：**是一种特殊的远程仓库，它是架设在局域网内的仓库服务，用来代理位于外部的中央仓库，用于解决团队内部的资源共享与资源同步问题。
+  2. **依赖查找顺序：**
+     - 本地仓库
+     - 私服仓库
+     - 中央仓库
+  3. **注意事项：**私服在企业项目开发中，一个项目/公司，只需要一台即可（无需我们自己搭建，会使用即可）。
+
+- 资源上传与下载
+
+  1. 步骤分析 
+
+     第一步配置：在maven的配置文件中配置访问私服的用户名、密码。
+
+     第二步配置：在maven的配置文件中配置连接私服的地址(url地址)。
+
+     第三步配置：在项目的pom.xml文件中配置上传资源的位置(url地址)。
+
+     > 私服仓库说明：
+     >
+     > - RELEASE：存储自己开发的RELEASE发布版本的资源。
+     > - SNAPSHOT：存储自己开发的SNAPSHOT发布版本的资源。
+     > - Central：存储的是从中央仓库下载下来的依赖。
+
+     > 项目版本说明：
+     >
+     > - RELEASE(发布版本)：功能趋于稳定、当前更新停止，可以用于发行的版本，存储在私服中的RELEASE仓库中。
+     > - SNAPSHOT(快照版本)：功能不稳定、尚处于开发中的版本，即快照版本，存储在私服的SNAPSHOT仓库中。
+
+- 具体操作
+
+  1. **设置私服的访问用户名/密码（在自己maven安装目录下的conf/settings.xml中的servers中配置）
+
+     ```xml
+     <server>
+         <id>maven-releases</id>
+         <username>admin</username>
+         <password>admin</password>
+     </server>
+         
+     <server>
+         <id>maven-snapshots</id>
+         <username>admin</username>
+         <password>admin</password>
+     </server>
+     ```
+
+  2. **设置私服依赖下载的仓库组地址（在自己maven安装目录下的conf/settings.xml中的mirrors、profiles中配置）**
+
+     ```xml
+     <mirror>
+         <id>maven-public</id>
+         <mirrorOf>*</mirrorOf>
+         <url>http://192.168.150.101:8081/repository/maven-public/</url>
+     </mirror>
+     ```
+
+     ```xml
+     <profile>
+         <id>allow-snapshots</id>
+             <activation>
+             	<activeByDefault>true</activeByDefault>
+             </activation>
+         <repositories>
+             <repository>
+                 <id>maven-public</id>
+                 <url>http://192.168.150.101:8081/repository/maven-public/</url>
+                 <releases>
+                 	<enabled>true</enabled>
+                 </releases>
+                 <snapshots>
+                 	<enabled>true</enabled>
+                 </snapshots>
+             </repository>
+         </repositories>
+     </profile>
+     ```
+
+  3. **IDEA的maven工程的pom文件中配置上传（发布）地址(直接在tlias-parent中配置发布地址)**
+
+     ```xml
+     <distributionManagement>
+         <!-- release版本的发布地址 -->
+         <repository>
+             <id>maven-releases</id>
+             <url>http://192.168.150.101:8081/repository/maven-releases/</url>
+         </repository>
+     
+         <!-- snapshot版本的发布地址 -->
+         <snapshotRepository>
+             <id>maven-snapshots</id>
+             <url>http://192.168.150.101:8081/repository/maven-snapshots/</url>
+         </snapshotRepository>
+     </distributionManagement>
+     ```
+
+  4. 配置完成之后，可在tlias-parent中执行**deploy**生命周期，将项目发布到私服仓库中。 
+
+
+
+
+
+
+
+
+
+
+
